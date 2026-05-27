@@ -621,6 +621,9 @@ pub struct FlatChainStore {
     /// The file containing the accumulators for each blocks
     accumulator_file: File,
 
+    /// Backing-file directory; needed by `size_on_disk` since `MmapMut` drops the file handle.
+    datadir: PathBuf,
+
     /// A LRU cache for the last n blocks we've touched
     cache: Mutex<LruCache<BlockHash, DiskBlockHeader>>,
 }
@@ -710,6 +713,7 @@ impl FlatChainStore {
             metadata,
             block_index: BlockIndex::new(index_map, index_size),
             fork_headers,
+            datadir: datadir.to_path_buf(),
             cache: LruCache::new(cache_size).into(),
         })
     }
@@ -781,6 +785,7 @@ impl FlatChainStore {
             metadata: metadata_file,
             block_index: BlockIndex::new(index_map, metadata.index_capacity),
             fork_headers,
+            datadir: datadir.clone(),
             cache: LruCache::new(cache_size).into(),
         })
     }
@@ -1131,6 +1136,41 @@ impl ChainStore for FlatChainStore {
         unsafe { self.do_flush() }
     }
 
+    fn size_on_disk(&self) -> Result<u64, Self::Error> {
+        // Sum `st_blocks * 512` per file so we report actual disk usage,
+        // not preallocated mmap capacity. See stat(2). Non-Unix falls back
+        // to apparent length (no portable `st_blocks` equivalent in std).
+        const FILES: &[&str] = &[
+            "headers.bin",
+            "metadata.bin",
+            "blocks_index.bin",
+            "fork_headers.bin",
+            "accumulators.bin",
+        ];
+
+        let mut total: u64 = 0;
+        for name in FILES {
+            let path = self.datadir.join(name);
+            match std::fs::metadata(&path) {
+                Ok(meta) => {
+                    #[cfg(unix)]
+                    {
+                        use std::os::unix::fs::MetadataExt;
+                        total += meta.blocks() * 512;
+                    }
+                    #[cfg(not(unix))]
+                    {
+                        total += meta.len();
+                    }
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => return Err(e.into()),
+            }
+        }
+
+        Ok(total)
+    }
+
     fn save_roots_for_block(&mut self, roots: Vec<u8>, height: u32) -> Result<(), Self::Error> {
         let index = Index::new(height)?;
 
@@ -1391,6 +1431,7 @@ mod tests {
     use super::FlatChainStore;
     use super::FlatChainStoreConfig;
     use super::FlatChainstoreError;
+    use super::HashedDiskHeader;
     use super::Index;
     use crate::AssumeValidArg;
     use crate::BestChain;
@@ -1689,6 +1730,67 @@ mod tests {
                 }
             }
         }
+    }
+
+    fn make_sized_store(
+        block_index_size: usize,
+        headers_file_size: usize,
+        fork_file_size: usize,
+    ) -> FlatChainStore {
+        let test_id = rand::random::<u64>();
+        let config = FlatChainStoreConfig {
+            block_index_size: Some(block_index_size),
+            headers_file_size: Some(headers_file_size),
+            fork_file_size: Some(fork_file_size),
+            cache_size: Some(10),
+            file_permission: Some(0o660),
+            path: format!("./tmp-db/{test_id}/").into(),
+        };
+        FlatChainStore::new(config).unwrap()
+    }
+
+    #[test]
+    fn test_size_on_disk() {
+        // Reports actual disk usage, not mmap capacity. Exact bytes depend
+        // on filesystem block size and sparse handling, so we assert invariants.
+        let mut store = make_sized_store(32_768, 32_768, 16_384);
+        let apparent_total = (32_768 * size_of::<u32>()
+            + 32_768 * size_of::<HashedDiskHeader>()
+            + 16_384 * size_of::<HashedDiskHeader>()
+            + size_of::<Metadata>()) as u64;
+
+        let initial = store.size_on_disk().unwrap();
+
+        // Actual usage can never exceed apparent capacity.
+        assert!(
+            initial <= apparent_total,
+            "actual {initial} should not exceed apparent capacity {apparent_total}",
+        );
+
+        // On sparse-aware filesystems an empty store stays below capacity.
+        #[cfg(unix)]
+        assert!(
+            initial < apparent_total,
+            "sparse-aware filesystem expected; actual {initial} equals apparent {apparent_total}",
+        );
+
+        // Writing to the accumulator (the only non-preallocated file) must
+        // grow the reported size.
+        let genesis = genesis_block(Network::Regtest);
+        store
+            .save_header(&DiskBlockHeader::FullyValid(genesis.header, 0))
+            .unwrap();
+        store.update_block_index(0, genesis.block_hash()).unwrap();
+
+        // Stay under MAX_ACCUMULATOR_SIZE (2056); any non-zero write
+        // allocates at least one filesystem block.
+        let acc = vec![0xab; 1024];
+        store.save_roots_for_block(acc, 0).unwrap();
+        let after_write = store.size_on_disk().unwrap();
+        assert!(
+            after_write > initial,
+            "size {after_write} should grow after accumulator write (was {initial})",
+        );
     }
 
     #[test]
