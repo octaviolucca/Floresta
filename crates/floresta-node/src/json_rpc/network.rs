@@ -2,17 +2,20 @@
 
 //! This module holds all RPC server side methods for interacting with our node's network stack.
 
+use std::collections::BTreeMap;
 use core::net::IpAddr;
 use core::net::SocketAddr;
 
 use bitcoin::Network;
 use corepc_types::v30::GetNetworkInfo;
 use corepc_types::v30::GetNetworkInfoNetwork;
+use corepc_types::v30::PeerInfo as CorePeerInfo;
 use floresta_common::PROTOCOL_VERSION;
 use floresta_common::advertised_services;
 use floresta_common::service_flags_strings;
 use floresta_wire::address_man::ReachableNetworks;
 use floresta_wire::node_interface::PeerInfo;
+use floresta_wire::TransportProtocol;
 use serde_json::Value;
 use serde_json::json;
 
@@ -138,11 +141,14 @@ impl<Blockchain: RpcChain> RpcImpl<Blockchain> {
         Ok(json!(null))
     }
 
-    pub(crate) async fn get_peer_info(&self) -> Result<Vec<PeerInfo>> {
-        self.node
+    pub(crate) async fn get_peer_info(&self) -> Result<Vec<CorePeerInfo>> {
+        let peers = self
+            .node
             .get_peer_info()
             .await
-            .map_err(|_| JsonRpcError::Node("Failed to get peer information".to_string()))
+            .map_err(|_| JsonRpcError::Node("Failed to get peer information".to_string()))?;
+
+        Ok(peers.into_iter().map(floresta_peer_to_core).collect())
     }
 
     pub(crate) async fn get_connection_count(&self) -> Result<usize> {
@@ -204,6 +210,76 @@ impl<Blockchain: RpcChain> RpcImpl<Blockchain> {
             local_addresses: Vec::new(), // Floresta doesn't track local addresses since it does not accept inbound connections
             warnings: Vec::new(),
         })
+    }
+}
+
+fn floresta_peer_to_core(peer: PeerInfo) -> CorePeerInfo {
+    let network = if peer.address.ip().is_loopback() {
+        "not_publicly_routable"
+    } else {
+        match peer.address {
+            SocketAddr::V4(_) => "ipv4",
+            SocketAddr::V6(_) => "ipv6",
+        }
+    }
+    .to_string();
+
+    let services_u64 = peer.services.to_u64();
+    let services = format!("{:016x}", services_u64);
+    let services_names = service_flags_strings(&peer.services);
+
+    let connection_type = serde_json::to_value(&peer.kind).ok().and_then(|v| v.as_str().map(String::from));
+
+    let transport_protocol_type = match peer.transport_protocol {
+        TransportProtocol::V1 => "v1",
+        TransportProtocol::V2 => "v2",
+    }
+    .to_string();
+
+    CorePeerInfo {
+        id: peer.id,
+        address: peer.address.to_string(),
+        address_bind: None,
+        address_local: None,
+        network,
+        mapped_as: None,
+        services,
+        services_names,
+        relay_transactions: false,
+        last_send: 0,
+        last_received: 0,
+        last_transaction: 0,
+        last_block: 0,
+        bytes_sent: 0,
+        bytes_received: 0,
+        connection_time: 0,
+        time_offset: 0,
+        ping_time: None,
+        minimum_ping: None,
+        ping_wait: None,
+        version: 0,
+        subversion: peer.user_agent,
+        inbound: false,
+        bip152_hb_to: false,
+        bip152_hb_from: false,
+        add_node: None,
+        starting_height: Some(peer.initial_height as i64),
+        presynced_headers: None,
+        ban_score: None,
+        synced_headers: None,
+        synced_blocks: None,
+        inflight: None,
+        addresses_relay_enabled: None,
+        addresses_processed: None,
+        addresses_rate_limited: None,
+        permissions: Vec::new(),
+        minimum_fee_filter: 0.0,
+        whitelisted: None,
+        bytes_sent_per_message: BTreeMap::new(),
+        bytes_received_per_message: BTreeMap::new(),
+        connection_type,
+        transport_protocol_type,
+        session_id: String::new(),
     }
 }
 
