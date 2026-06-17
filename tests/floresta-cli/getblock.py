@@ -10,6 +10,7 @@ import time
 import random
 from typing import Any
 import pytest
+from test_framework.util import compare_fields
 
 
 class TestGetBlock:
@@ -71,12 +72,7 @@ class TestGetBlock:
         floresta_block = self.florestad.rpc.get_block(block_hash, 1)
         bitcoind_block = self.bitcoind.rpc.get_block(block_hash, 1)
 
-        for key, bval in bitcoind_block.items():
-            fval = floresta_block[key]
-
-            self.log.info(f"Comparing {key} field: floresta={fval} bitcoind={bval}")
-            if key == "difficulty":
-                # Allow small differences in floating point representation
-                assert round(fval, 3) == round(bval, 3)
-            else:
-                assert fval == bval
+        compare_fields(
+            floresta_block,
+            bitcoind_block,
+        )

@@ -8,6 +8,7 @@ import inspect
 import random
 import socket
 import subprocess
+import math
 
 from test_framework.crypto.pkcs8 import (
     create_pkcs8_private_key,
@@ -134,3 +135,49 @@ def wait_until(predicate, timeout=30, interval=0.5, error_msg="Condition not met
         time.sleep(interval)
 
     raise TimeoutError(f"{error_msg} after {timeout} seconds")
+
+
+def compare_fields(candidate, reference, ignore_fields=None, float_tol=1e-8):
+    """
+    Recursively compare two data structures (dicts, lists, or scalars),
+    ignoring specified fields.
+
+    Note:
+        The comparison is asymmetric. `reference` defines the required fields.
+        For Floresta RPC tests, use Floresta as `candidate` and the reference
+        node as `reference`.
+    """
+    if ignore_fields is None:
+        ignore_fields = set()
+    elif isinstance(ignore_fields, list):
+        ignore_fields = set(ignore_fields)
+
+    # float tolerance
+    if isinstance(candidate, float) or isinstance(reference, float):
+        assert math.isclose(candidate, reference, rel_tol=0.0, abs_tol=float_tol), (
+            f"Float mismatch: candidate={candidate}, reference={reference}, "
+            f"tolerance={float_tol}"
+        )
+        return
+
+    # dict
+    if isinstance(candidate, dict) and isinstance(reference, dict):
+        for key, ref_value in reference.items():
+            if key in ignore_fields:
+                continue
+            assert key in candidate, f"Missing key in candidate: {key}"
+            compare_fields(candidate[key], ref_value, ignore_fields=ignore_fields)
+
+        return
+
+    # list
+    if isinstance(candidate, list) and isinstance(reference, list):
+        assert len(candidate) == len(
+            reference
+        ), f"List length mismatch: expected {len(candidate)}, got {len(reference)}"
+        for cand_item, ref_item in zip(candidate, reference):
+            compare_fields(cand_item, ref_item, ignore_fields=ignore_fields)
+        return
+
+    # scalar
+    assert candidate == reference

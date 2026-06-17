@@ -11,6 +11,7 @@ import random
 from typing import Any
 import pytest
 from requests.exceptions import HTTPError
+from test_framework.util import compare_fields
 
 TIMEOUT_SECONDS = 20
 
@@ -94,7 +95,7 @@ class TestGetBlockheader:
         self.log.info("Fetching request without verbosity")
         florestad_header = self.florestad.rpc.get_blockheader(block_hash)
         bitcoind_header = self.bitcoind.rpc.get_blockheader(block_hash)
-        self.validate_headers_match(florestad_header, bitcoind_header)
+        compare_fields(florestad_header, bitcoind_header)
 
         verbosity = False
         self.log.info(f"Fetching request with verbosity {verbosity}")
@@ -107,18 +108,4 @@ class TestGetBlockheader:
         florestad_header = self.florestad.rpc.get_blockheader(block_hash, verbosity)
         bitcoind_header = self.bitcoind.rpc.get_blockheader(block_hash, verbosity)
 
-        self.validate_headers_match(florestad_header, bitcoind_header)
-
-    def validate_headers_match(self, florestad_header: dict, bitcoind_header: dict):
-        """
-        Compare two block headers and assert that they match.
-        """
-        for key, bval in bitcoind_header.items():
-            fval = florestad_header[key]
-
-            self.log.info(f"Comparing {key} field: florestad={fval} bitcoind={bval}")
-            if key == "difficulty":
-                # Allow small differences in floating point representation
-                assert round(fval, 3) == round(bval, 3)
-            else:
-                assert fval == bval
+        compare_fields(florestad_header, bitcoind_header)

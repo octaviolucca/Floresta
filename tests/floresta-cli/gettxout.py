@@ -7,6 +7,9 @@ This functional test cli utility to interact with a Floresta node with `gettxout
 """
 
 import pytest
+from test_framework.util import compare_fields
+
+IGNORE_FIELDS = ["bestblock", "confirmations"]
 
 
 # pylint: disable=too-many-locals
@@ -36,17 +39,4 @@ def test_get_txout(setup_logging, florestad_bitcoind_utreexod_with_chain, node_m
             txout_bitcoind = bitcoind.rpc.get_txout(tx, vout=0, include_mempool=False)
             assert txout_bitcoind is not None, f"Txout for tx {tx} is None in Bitcoind."
 
-            for key in txout_bitcoind.keys():
-                if key in ["bestblock", "confirmations"]:
-                    continue
-
-                if key == "scriptPubKey":
-                    for subkey in txout_bitcoind["scriptPubKey"].keys():
-                        log.debug(f"Comparing scriptPubKey[{subkey}] for tx {tx}...")
-                        assert (
-                            txout_floresta["scriptPubKey"][subkey]
-                            == txout_bitcoind["scriptPubKey"][subkey]
-                        )
-                else:
-                    log.debug(f"Comparing {key} for tx {tx}...")
-                    assert txout_floresta[key] == txout_bitcoind[key]
+            compare_fields(txout_floresta, txout_bitcoind, ignore_fields=IGNORE_FIELDS)
