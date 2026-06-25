@@ -193,6 +193,11 @@ where
                 continue;
             }
 
+            if matches!(request, NodeRequest::BroadcastTransaction(_)) && !peer.is_full_relay_peer()
+            {
+                continue;
+            }
+
             if let Err(err) = peer.channel.send(request.clone()) {
                 warn!("Failed to send request to peer {}: {err}", peer.address);
             }
@@ -200,7 +205,17 @@ where
     }
 
     pub(crate) fn ask_for_addresses(&mut self) -> Result<(), WireError> {
-        let _ = self.send_to_random_peer(NodeRequest::GetAddresses, ServiceFlags::NONE)?;
+        let peer = self
+            .peers
+            .values()
+            .filter(|peer| peer.state == PeerStatus::Ready && peer.is_full_relay_peer())
+            .choose(&mut rand::rng())
+            .ok_or(WireError::NoPeersAvailable)?;
+
+        peer.channel
+            .send(NodeRequest::GetAddresses)
+            .map_err(WireError::ChannelSend)?;
+
         Ok(())
     }
 
@@ -226,32 +241,27 @@ where
             p.state = PeerStatus::Ready;
         });
 
-        // Ask for new addresses to populate our address manager
-        self.send_to_peer(peer, NodeRequest::GetAddresses)?;
-        self.inflight
-            .insert(InflightRequests::GetAddresses, (peer, Instant::now()));
-
         let good_peers_count = self.connected_peers();
         if good_peers_count > T::MAX_OUTGOING_PEERS {
             // We allow utreexo, extra and manual peers to bypass our connection limits
-            let is_utreexo_peer = matches!(version.kind, ConnectionKind::Regular(services) if services.has(service_flags::UTREEXO.into()));
+            let is_utreexo_peer = matches!(version.kind, ConnectionKind::OutboundFullRelay(services) if services.has(service_flags::UTREEXO.into()));
             let is_manual_peer = version.kind == ConnectionKind::Manual;
             let is_extra = version.kind == ConnectionKind::Extra;
 
             if !(is_utreexo_peer || is_manual_peer || is_extra) {
                 debug!(
-                    "Already have {} peers, disconnecting peer to avoid blowing up our max of {}",
+                    "Already have {} peers, treating peer {peer} as addr-fetch before disconnecting to avoid blowing up our max of {}",
                     good_peers_count,
                     T::MAX_OUTGOING_PEERS
                 );
 
-                // If a peer exceeds our max, just turn them into a feeler so we can receive their
-                // AddrV2 message and then disconnect.
+                // If a peer exceeds our max, just turn them into an addr-fetch
+                // so we can receive their AddrV2 message and then disconnect.
                 self.peers.entry(peer).and_modify(|p| {
-                    p.kind = ConnectionKind::Feeler;
+                    p.kind = ConnectionKind::AddrFetch;
                 });
 
-                version.kind = ConnectionKind::Feeler;
+                version.kind = ConnectionKind::AddrFetch;
             }
         }
 
@@ -265,17 +275,57 @@ where
                 .update_set_service_flag(version.address_id, version.services)
                 .update_set_state(version.address_id, AddressState::Tried(now));
 
+            debug!(
+                "Feeler peer {peer} completed handshake; marking address tried and disconnecting"
+            );
+            self.send_to_peer(peer, NodeRequest::Shutdown)?;
+            return Ok(());
+        }
+
+        if version.kind == ConnectionKind::AddrFetch {
+            debug!("Addr-fetch peer {peer} completed handshake; requesting addresses");
+            self.send_to_peer(peer, NodeRequest::GetAddresses)?;
+            self.inflight
+                .insert(InflightRequests::GetAddresses, (peer, Instant::now()));
+
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
+
+            self.address_man
+                .update_set_service_flag(version.address_id, version.services)
+                .update_set_state(version.address_id, AddressState::Tried(now));
+
             return Ok(());
         }
 
         if version.kind == ConnectionKind::Extra {
+            if let Some(peer_data) = self.common.peers.get_mut(&peer) {
+                peer_data.services = version.services;
+                peer_data.user_agent.clone_from(&version.user_agent);
+                peer_data.height = version.blocks;
+                peer_data.transport_protocol = version.transport_protocol;
+            }
+
             let locator = self.chain.get_block_locator()?;
+            debug!("Extra peer {peer} completed handshake; requesting headers");
             self.send_to_peer(peer, NodeRequest::GetHeaders(locator))?;
 
             self.inflight
                 .insert(InflightRequests::Headers, (peer, Instant::now()));
 
             return Ok(());
+        }
+
+        if !matches!(version.kind, ConnectionKind::BlockRelayOnly(_)) {
+            debug!(
+                "Requesting addresses from peer {peer} kind={:?}",
+                version.kind
+            );
+            self.send_to_peer(peer, NodeRequest::GetAddresses)?;
+            self.inflight
+                .insert(InflightRequests::GetAddresses, (peer, Instant::now()));
         }
 
         info!(
@@ -290,7 +340,9 @@ where
             peer_data.transport_protocol = version.transport_protocol;
 
             // If this peer doesn't have basic services, we disconnect it
-            if let ConnectionKind::Regular(needs) = version.kind {
+            if let ConnectionKind::OutboundFullRelay(needs)
+            | ConnectionKind::BlockRelayOnly(needs) = version.kind
+            {
                 if !Self::is_peer_good(peer_data, needs) {
                     info!(
                         "Disconnecting peer {peer} for not having the required services. has={} needs={}",
@@ -355,6 +407,14 @@ where
                 .update_set_service_flag(version.address_id, version.services);
 
             self.peer_ids.push(peer);
+
+            if matches!(version.kind, ConnectionKind::BlockRelayOnly(_)) {
+                let locator = self.chain.get_block_locator()?;
+                self.send_to_peer(peer, NodeRequest::GetHeaders(locator))?;
+
+                self.inflight
+                    .insert(InflightRequests::Headers, (peer, Instant::now()));
+            }
         }
 
         #[cfg(feature = "metrics")]
@@ -623,10 +683,14 @@ where
                 continue;
             };
 
-            // If a feeler connection times out, we ban them at the first message
+            // Short-lived connections don't get retried through the normal
+            // inflight request path.
             if let Some(peer_data) = self.peers.get(&peer) {
-                if peer_data.kind == ConnectionKind::Feeler {
-                    debug!("Feeler peer {peer} timed out request");
+                if matches!(
+                    peer_data.kind,
+                    ConnectionKind::Feeler | ConnectionKind::AddrFetch
+                ) {
+                    debug!("Short-lived peer {peer} timed out request");
                     self.send_to_peer(peer, NodeRequest::Shutdown)?;
                     self.peers.remove(&peer);
                     continue;
@@ -664,13 +728,14 @@ where
         let addresses: Vec<_> = addresses.into_iter().map(|addr| addr.into()).collect();
         self.address_man.push_addresses(&addresses);
 
-        // For feeler peers, we ask for addresses to populate our address manager,
-        // then disconnect them
+        // Addr-fetch peers are short-lived: after we receive their addresses,
+        // we disconnect them.
         let Some(peer_data) = self.peers.get(&peer) else {
             return Ok(());
         };
 
-        if matches!(peer_data.kind, ConnectionKind::Feeler) {
+        if matches!(peer_data.kind, ConnectionKind::AddrFetch) {
+            debug!("Addr-fetch peer {peer} returned addresses; disconnecting");
             self.send_to_peer(peer, NodeRequest::Shutdown)?;
         }
 
