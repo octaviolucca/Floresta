@@ -1881,6 +1881,49 @@ mod test {
     }
 
     #[test]
+    fn test_fork_tips() {
+        let chain = setup_test_chain(Network::Regtest, AssumeValidArg::Hardcoded);
+        let json_blocks = include_str!("../../testdata/test_reorg.json");
+        let blocks: Vec<Vec<&str>> = serde_json::from_str(json_blocks).unwrap();
+
+        let parse_blocks = |blocks: &[&str]| {
+            blocks
+                .iter()
+                .map(|s| deserialize_hex(s).unwrap())
+                .collect::<Vec<Block>>()
+        };
+
+        let short_chain = parse_blocks(&blocks[0]); // 10 blocks on genesis
+        let long_chain = parse_blocks(&blocks[1]); // 11 blocks forking from block 5
+
+        // Accept all 10 main-chain headers
+        for block in &short_chain {
+            chain.accept_header(block.header).unwrap();
+        }
+
+        // Only one tip so far (the main chain)
+        let tips = chain.get_chain_tips().unwrap();
+        assert_eq!(tips.len(), 1);
+
+        // Accept only 4 fork headers (less work than main chain: 4 < 5 blocks after fork point)
+        for block in &long_chain[..4] {
+            chain.accept_header(block.header).unwrap();
+        }
+
+        // Now we should have 2 tips: main chain + fork
+        let tips = chain.get_chain_tips().unwrap();
+        assert_eq!(tips.len(), 2);
+
+        // First tip is always the best block (main chain tip at height 10)
+        let (best_height, best_hash) = chain.get_best_block().unwrap();
+        assert_eq!(best_height, 10);
+        assert_eq!(tips[0], best_hash);
+
+        // Second tip is the fork tip (4th fork block)
+        assert_eq!(tips[1], long_chain[3].block_hash());
+    }
+
+    #[test]
     fn test_chainstate_functions() {
         let file = include_bytes!("../../testdata/signet_headers.zst");
         let uncompressed: Vec<u8> = zstd::decode_all(Cursor::new(file)).unwrap();
