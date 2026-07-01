@@ -404,10 +404,13 @@ pub enum Methods {
         height_hint: Option<u32>,
     },
 
-    /// Returns statistics about Floresta's memory usage.
-    ///
-    /// Returns zeroed values for all runtimes that are not *-gnu or MacOS.
-    #[command(name = "getmemoryinfo")]
+    #[doc = include_str!("../../../doc/rpc/getmemoryinfo.md")]
+    #[command(
+        name = "getmemoryinfo",
+        about = "Returns statistics about Floresta's memory usage.",
+        long_about = Some(include_str!("../../../doc/rpc/getmemoryinfo.md")),
+        disable_help_subcommand = true
+    )]
     GetMemoryInfo { mode: Option<String> },
 
     /// Returns information about the RPC server

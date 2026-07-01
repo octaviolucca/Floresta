@@ -146,9 +146,7 @@ pub trait FlorestaRPC {
         script: String,
         height_hint: u32,
     ) -> Result<Value>;
-    /// Returns statistics about Floresta's memory usage.
-    ///
-    /// Returns zeroed values for all runtimes that are not *-gnu or MacOS.
+    #[doc = include_str!("../../../doc/rpc/getmemoryinfo.md")]
     fn get_memory_info(&self, mode: String) -> Result<GetMemInfoRes>;
     /// Returns stats about our RPC server
     fn get_rpc_info(&self) -> Result<GetRpcInfoRes>;
