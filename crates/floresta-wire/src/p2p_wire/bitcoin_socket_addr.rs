@@ -117,7 +117,7 @@ impl BitcoinSocketAddr {
     /// Returns that network's default port, if present
     ///
     /// Note: it takes an option because it makes the logic inside `parse_port_if_present` easier
-    fn get_default_port(network: Network) -> u16 {
+    pub(crate) fn get_default_port(network: Network) -> u16 {
         match network {
             Network::Signet => 38333,
             Network::Bitcoin => 8333,
