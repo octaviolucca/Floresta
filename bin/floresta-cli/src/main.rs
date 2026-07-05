@@ -417,19 +417,13 @@ pub enum Methods {
     )]
     GetMemoryInfo { mode: Option<String> },
 
-    /// Returns information about the RPC server
-    ///
-    /// Result: {                  (json object)
-    ///   "active_commands" : [    (json array) All active commands
-    ///     {                      (json object) Information about an active command
-    ///       "method" : "str",    (string) The name of the RPC command
-    ///       "duration" : n       (numeric) The running time in microseconds
-    ///     },
-    ///     ...
-    ///   ],
-    ///   "logpath" : "str"        (string) The complete file path to the debug log
-    /// }
-    #[command(name = "getrpcinfo")]
+    #[doc = include_str!("../../../doc/rpc/getrpcinfo.md")]
+    #[command(
+        name = "getrpcinfo",
+        about = "Returns information about the RPC server",
+        long_about = Some(include_str!("../../../doc/rpc/getrpcinfo.md")),
+        disable_help_subcommand = true
+    )]
     GetRpcInfo,
 
     #[doc = include_str!("../../../doc/rpc/uptime.md")]

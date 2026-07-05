@@ -148,7 +148,7 @@ pub trait FlorestaRPC {
     ) -> Result<Value>;
     #[doc = include_str!("../../../doc/rpc/getmemoryinfo.md")]
     fn get_memory_info(&self, mode: String) -> Result<GetMemInfoRes>;
-    /// Returns stats about our RPC server
+    #[doc = include_str!("../../../doc/rpc/getrpcinfo.md")]
     fn get_rpc_info(&self) -> Result<GetRpcInfoRes>;
     #[doc = include_str!("../../../doc/rpc/uptime.md")]
     fn uptime(&self) -> Result<u32>;
