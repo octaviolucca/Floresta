@@ -427,8 +427,13 @@ pub enum Methods {
     )]
     Uptime,
 
-    /// Returns a list of all descriptors currently loaded in the wallet
-    #[command(name = "listdescriptors")]
+    #[doc = include_str!("../../../doc/rpc/listdescriptors.md")]
+    #[command(
+        name = "listdescriptors",
+        about = "Returns a list of all descriptors currently loaded in the wallet",
+        long_about = Some(include_str!("../../../doc/rpc/listdescriptors.md")),
+        disable_help_subcommand = true
+    )]
     ListDescriptors,
 
     #[doc = include_str!("../../../doc/rpc/ping.md")]
