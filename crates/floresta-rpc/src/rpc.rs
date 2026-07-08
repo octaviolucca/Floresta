@@ -152,7 +152,7 @@ pub trait FlorestaRPC {
     fn get_rpc_info(&self) -> Result<GetRpcInfoRes>;
     #[doc = include_str!("../../../doc/rpc/uptime.md")]
     fn uptime(&self) -> Result<u32>;
-    /// Returns a list of all descriptors currently loaded in the wallet
+    #[doc = include_str!("../../../doc/rpc/listdescriptors.md")]
     fn list_descriptors(&self) -> Result<Vec<String>>;
     #[doc = include_str!("../../../doc/rpc/ping.md")]
     fn ping(&self) -> Result<()>;
