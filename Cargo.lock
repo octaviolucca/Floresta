@@ -281,15 +281,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bitcoin-consensus-encoding"
-version = "1.0.0-rc.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9cd69023e5db2f3f7241672de6be29408373ba0ff407e7fda71d70d728bec05a"
-dependencies = [
- "bitcoin-internals 0.5.0",
-]
-
-[[package]]
 name = "bitcoin-internals"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -303,9 +294,6 @@ name = "bitcoin-internals"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a90bbbfa552b49101a230fb2668f3f9ef968c81e6f83cf577e1d4b80f689e1aa"
-dependencies = [
- "hex-conservative 0.3.2",
-]
 
 [[package]]
 name = "bitcoin-internals"
@@ -333,13 +321,13 @@ dependencies = [
 
 [[package]]
 name = "bitcoin-io"
-version = "0.3.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd1a5e0e2112a702941a5c82fe0a31954c2900686053c33f59af64feab61d981"
+checksum = "f6fb823712b12e5cfccdb9a2b6a62de2dc42ddb5ec489511025eebeba1c21829"
 dependencies = [
- "bitcoin-consensus-encoding 1.0.0-rc.3",
- "bitcoin-internals 0.4.2",
- "bitcoin_hashes 0.18.0",
+ "bitcoin-consensus-encoding",
+ "bitcoin-internals 0.5.0",
+ "bitcoin_hashes 0.20.0",
 ]
 
 [[package]]
@@ -375,22 +363,11 @@ dependencies = [
 
 [[package]]
 name = "bitcoin_hashes"
-version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0cb7fdb8e07d365e9cd16993fb3c4e04f734c66e334b9cb3c0479fa5437b0ed5"
-dependencies = [
- "bitcoin-consensus-encoding 1.0.0-rc.3",
- "bitcoin-internals 0.4.2",
- "hex-conservative 0.3.2",
-]
-
-[[package]]
-name = "bitcoin_hashes"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9a8a45c2b41c457a9a9e4670422fcbdf109afb3b22bc920b4045e8bdfd788a3d"
 dependencies = [
- "bitcoin-consensus-encoding 0.1.0",
+ "bitcoin-consensus-encoding",
  "bitcoin-internals 0.5.0",
  "hex-conservative 0.3.2",
 ]
@@ -1424,8 +1401,6 @@ version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
 dependencies = [
- "allocator-api2",
- "equivalent",
  "foldhash 0.2.0",
 ]
 
@@ -2602,12 +2577,13 @@ dependencies = [
 
 [[package]]
 name = "rustreexo"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8353cd48bea30340eced2a11770e47bb6b83f0e7e679742301f3332e6ec1f6ab"
+checksum = "dfd192515a261e313333836d17857e2ae6cdf97d3c57f43f45804b6f657b07f0"
 dependencies = [
- "bitcoin-io 0.3.0",
+ "bitcoin-io 0.5.0",
  "bitcoin_hashes 0.20.0",
+ "foldhash 0.2.0",
  "hashbrown 0.16.1",
  "hex-conservative 1.1.0",
 ]
