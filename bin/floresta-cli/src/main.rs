@@ -352,10 +352,13 @@ pub enum Methods {
     )]
     GetConnectionCount,
 
-    /// Returns the value associated with a UTXO, if it's still not spent.
-    /// This function only works properly if we have the compact block filters
-    /// feature enabled
-    #[command(name = "gettxout")]
+    #[doc = include_str!("../../../doc/rpc/gettxout.md")]
+    #[command(
+        name = "gettxout",
+        about = "Returns details about an unspent transaction output.",
+        long_about = Some(include_str!("../../../doc/rpc/gettxout.md")),
+        disable_help_subcommand = true
+    )]
     GetTxOut { txid: Txid, vout: u32 },
 
     #[doc = include_str!("../../../doc/rpc/stop.md")]

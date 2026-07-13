@@ -114,11 +114,7 @@ pub trait FlorestaRPC {
     /// is returned as a hexadecimal string. If the verbosity flag is 1, the block is returned
     /// as a json object.
     fn get_block(&self, hash: BlockHash, verbosity: Option<u32>) -> Result<GetBlockRes>;
-    /// Return a cached transaction output
-    ///
-    /// This method returns a cached transaction output. If the output is not in the cache,
-    /// or is spent, an empty object is returned. If you want to find a utxo that's not in
-    /// the cache, you can use the findtxout method.
+    #[doc = include_str!("../../../doc/rpc/gettxout.md")]
     fn get_tx_out(&self, tx_id: Txid, outpoint: u32) -> Result<GetTxOut>;
     #[doc = include_str!("../../../doc/rpc/stop.md")]
     fn stop(&self) -> Result<String>;
