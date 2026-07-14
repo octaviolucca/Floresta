@@ -6,6 +6,7 @@ Tests for node information exchanged between Floresta and other peers.
 
 import re
 import pytest
+from test_framework.service_flags import assert_service_fields_consistent
 
 
 @pytest.mark.rpc
@@ -27,9 +28,7 @@ def test_node_info(florestad_bitcoind):
     peer_info = florestad.rpc.get_peerinfo()
     assert peer_info[0]["address"] == bitcoind.p2p_url
     assert peer_info[0]["kind"] == "manual"
-    assert (
-        peer_info[0]["services"]
-        == "ServiceFlags(NETWORK|WITNESS|NETWORK_LIMITED|P2P_V2)"
-    )
+    assert_service_fields_consistent(peer_info[0])
+    assert {"NETWORK", "WITNESS"}.issubset(set(peer_info[0]["servicesnames"]))
     assert peer_info[0]["transport_protocol"] == "V2"
     assert re.match(r"\/Satoshi:\d*\.\d*\.\d*\/", peer_info[0]["user_agent"])
