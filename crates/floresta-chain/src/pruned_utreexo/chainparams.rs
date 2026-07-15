@@ -375,10 +375,10 @@ impl From<Network> for ChainParams {
                 params: Params::new(network),
                 network,
                 genesis,
-                pow_target_timespan: 14 * 24 * 60 * 60, // two weeks
+                pow_target_timespan: 24 * 60 * 60, // one day
                 subsidy_halving_interval: SubsidyHalvingInterval::Regtest,
                 coinbase_maturity: 100,
-                csv_activation_height: 0,
+                csv_activation_height: 1,
                 segwit_activation_height: 0,
                 exceptions,
                 enforce_bip94: false,
