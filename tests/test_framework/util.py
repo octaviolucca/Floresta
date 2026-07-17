@@ -15,6 +15,26 @@ from test_framework.crypto.pkcs8 import (
     create_pkcs8_self_signed_certificate,
 )
 
+SERVICE_FLAGS_BY_NAME = {
+    "NETWORK": 1 << 0,
+    "GETUTXO": 1 << 1,
+    "BLOOM": 1 << 2,
+    "WITNESS": 1 << 3,
+    "COMPACT_FILTERS": 1 << 6,
+    "NETWORK_LIMITED": 1 << 10,
+    "P2P_V2": 1 << 11,
+    "UTREEXO": 1 << 12,
+    "UTREEXO_ARCHIVE": 1 << 13,
+}
+
+BITCOIND_TEST_FRAMEWORK_SERVICES = "0000000000000c09"
+BITCOIND_TEST_FRAMEWORK_SERVICESNAMES = {
+    "NETWORK",
+    "WITNESS",
+    "NETWORK_LIMITED",
+    "P2P_V2",
+}
+
 
 class Utility:
     """
@@ -135,6 +155,35 @@ def wait_until(predicate, timeout=30, interval=0.5, error_msg="Condition not met
         time.sleep(interval)
 
     raise TimeoutError(f"{error_msg} after {timeout} seconds")
+
+
+def assert_service_fields_consistent(peer_info):
+    """
+    Assert that getpeerinfo's services and servicesnames describe the same flags.
+    """
+    services = peer_info["services"]
+    assert isinstance(services, str)
+    assert len(services) == 16
+    services_bits = int(services, 16)
+
+    services_names = peer_info["servicesnames"]
+    assert isinstance(services_names, list)
+    assert all(isinstance(name, str) for name in services_names)
+
+    services_names = set(services_names)
+    assert services_names <= set(SERVICE_FLAGS_BY_NAME)
+
+    for name, flag in SERVICE_FLAGS_BY_NAME.items():
+        assert bool(services_bits & flag) == (name in services_names), name
+
+
+def assert_bitcoind_service_fields(peer_info):
+    """
+    Assert getpeerinfo service fields for the Bitcoin Core test framework node.
+    """
+    assert_service_fields_consistent(peer_info)
+    assert peer_info["services"] == BITCOIND_TEST_FRAMEWORK_SERVICES
+    assert set(peer_info["servicesnames"]) == BITCOIND_TEST_FRAMEWORK_SERVICESNAMES
 
 
 def compare_fields(candidate, reference, ignore_fields=None, float_tol=1e-8):
