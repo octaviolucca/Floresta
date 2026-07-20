@@ -207,7 +207,8 @@ impl<Blockchain: RpcChain> RpcImpl<Blockchain> {
             return Ok(GetBlockRes::Zero(hex));
         }
         if verbosity == 1 {
-            let header_fields = self.get_block_header_verbose_inner(&block)?;
+            let header_fields =
+                self.get_block_header_verbose_inner(&block.header, block.txdata.len())?;
 
             // Stripped size is the size of the block without witness data
             // Header + VarInt for number of transactions + sum of base sizes of each transaction
@@ -350,9 +351,11 @@ impl<Blockchain: RpcChain> RpcImpl<Blockchain> {
             return Ok(GetBlockHeaderRes::Raw(hex));
         }
 
-        let block = self.get_block_inner(hash).await?;
-
-        let get_block_header = self.get_block_header_verbose_inner(&block)?;
+        // Build the verbose response from the header alone: fetching the full
+        // block would require a network round-trip and fails entirely for
+        // fork blocks that peers no longer serve. n_tx is unknown without the
+        // block body, so it is reported as 0.
+        let get_block_header = self.get_block_header_verbose_inner(&header, 0)?;
 
         Ok(GetBlockHeaderRes::Verbose(Box::new(get_block_header)))
     }
@@ -448,9 +451,9 @@ impl<Blockchain: RpcChain> RpcImpl<Blockchain> {
     /// Same as `get_block_header_inner` but verbose.
     fn get_block_header_verbose_inner(
         &self,
-        block: &Block,
+        header: &Header,
+        n_tx: usize,
     ) -> Result<GetBlockHeaderVerbose, JsonRpcError> {
-        let header = &block.header;
         let height = header.get_height(&self.chain)?;
         let median_time = header.calculate_median_time_past(&self.chain)?;
         let chain_work = header.calculate_chain_work(&self.chain)?.to_string_hex();
@@ -483,7 +486,7 @@ impl<Blockchain: RpcChain> RpcImpl<Blockchain> {
             time: header.time.into(),
             target,
             nonce: header.nonce.into(),
-            n_tx: block.txdata.len().try_into()?,
+            n_tx: n_tx.try_into()?,
         })
     }
 
