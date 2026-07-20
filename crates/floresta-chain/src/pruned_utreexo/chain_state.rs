@@ -443,7 +443,8 @@ impl<PersistedState: ChainStore> ChainState<PersistedState> {
 
     // This method should only be called after we validate the new branch
     fn reorg(&self, new_tip: BlockHeader) -> Result<(), BlockchainError> {
-        let current_best_block = self.get_block_header(&self.get_best_block()?.1)?;
+        let old_best_hash = self.get_best_block()?.1;
+        let current_best_block = self.get_block_header(&old_best_hash)?;
         let fork_point = self.find_fork_point(&new_tip)?;
 
         self.mark_chain_as_inactive(&current_best_block, fork_point.block_hash())?;
@@ -454,6 +455,23 @@ impl<PersistedState: ChainStore> ChainState<PersistedState> {
 
         self.change_active_chain(&new_tip, validation_index, depth);
         self.reorg_acc(&fork_point)?;
+
+        // The branch that just won is no longer a fork, and the tip we
+        // abandoned now is: without this, getchaintips keeps reporting the
+        // winning branch as a side tip and loses the stale one entirely.
+        let mut new_branch = Vec::new();
+        let mut cursor = new_tip;
+        while cursor.block_hash() != fork_point.block_hash() {
+            new_branch.push(cursor.block_hash());
+            cursor = *self.get_ancestor(&cursor)?;
+        }
+
+        let mut inner = write_lock!(self);
+        let alt_tips = &mut inner.best_block.alternative_tips;
+        alt_tips.retain(|hash| !new_branch.contains(hash));
+        if old_best_hash != fork_point.block_hash() && !alt_tips.contains(&old_best_hash) {
+            alt_tips.push(old_best_hash);
+        }
 
         Ok(())
     }
