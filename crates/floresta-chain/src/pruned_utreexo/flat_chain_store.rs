@@ -1060,8 +1060,17 @@ impl FlatChainStore {
             parent_hashes.insert(hdr.header.prev_blockhash);
         }
 
-        // A tip is a fork header that no other fork header builds on
-        Ok(fork_hashes.difference(&parent_hashes).copied().collect())
+        // A tip is a fork header that no other fork header builds on. The fork
+        // file keeps stale copies of headers that later became part of the
+        // best chain (a reorg flips their state in the block index but doesn't
+        // remove them here), so only headers still marked InFork qualify.
+        let mut tips = Vec::new();
+        for hash in fork_hashes.difference(&parent_hashes) {
+            if let Some(DiskBlockHeader::InFork(..)) = unsafe { self.get_header_by_hash(*hash)? } {
+                tips.push(*hash);
+            }
+        }
+        Ok(tips)
     }
 
     unsafe fn get_best_chain(&self) -> Result<BestChain, FlatChainstoreError> {
