@@ -165,7 +165,14 @@ impl NetworkMessageExt for NetworkMessage {
 
         match short_id {
             0u8 => {
-                let mut command_buffer = &buffer[1..13];
+                let Some(mut command_buffer) = buffer.get(1..13) else {
+                    return Err(V2MessageError::Deserialize(encode::Error::Io(
+                        bitcoin::io::Error::new(
+                            bitcoin::io::ErrorKind::UnexpectedEof,
+                            "Missing command for zero short_id message",
+                        ),
+                    )));
+                };
                 let command = CommandString::consensus_decode(&mut command_buffer)
                     .map_err(V2MessageError::Deserialize)?;
                 payload_buffer = &buffer[13..];
@@ -278,5 +285,33 @@ impl NetworkMessageExt for NetworkMessage {
             )?)),
             unknown => Err(V2MessageError::UnknownShortID(unknown)),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use bitcoin::p2p::message::NetworkMessage;
+
+    use super::NetworkMessageExt;
+    use super::V2MessageError;
+
+    #[test]
+    fn deserialize_v2_zero_short_id() {
+        assert!(matches!(
+            NetworkMessage::deserialize_v2(&[0u8]),
+            Err(V2MessageError::Deserialize(_))
+        ));
+
+        assert!(matches!(
+            NetworkMessage::deserialize_v2(&[0u8; 12]),
+            Err(V2MessageError::Deserialize(_))
+        ));
+
+        let mut verack = vec![0u8];
+        verack.extend(b"verack\0\0\0\0\0\0");
+        assert_eq!(
+            NetworkMessage::deserialize_v2(&verack).expect("valid verack frame"),
+            NetworkMessage::Verack
+        );
     }
 }
