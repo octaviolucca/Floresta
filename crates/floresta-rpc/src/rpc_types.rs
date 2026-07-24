@@ -39,11 +39,23 @@ pub struct PeerInfo {
     /// Human-readable names for the recognized services this peer advertises.
     #[serde(rename = "servicesnames")]
     pub services_names: Vec<String>,
+    /// Whether this peer requested mempool transaction relay from us.
+    #[serde(rename = "relaytxes")]
+    pub relay_txs: bool,
     /// User agent is a string that represents the client being used by our peer. E.g.
     /// /Satoshi-26.0/ for bitcoin core version 26
     pub user_agent: String,
+    /// Whether this peer connection is inbound.
+    pub inbound: bool,
+    /// Whether we selected this peer as a BIP152 high-bandwidth compact block relay peer.
+    pub bip152_hb_to: bool,
+    /// Whether this peer selected us as a BIP152 high-bandwidth compact block relay peer.
+    pub bip152_hb_from: bool,
     /// This peer's height at the time we've opened a connection with them
     pub initial_height: u32,
+    /// The peer time offset in seconds.
+    #[serde(rename = "timeoffset")]
+    pub time_offset: i64,
     /// The connection type of this peer
     ///
     /// We can connect with peers for different reasons. E.g. we can connect to a peer to
@@ -54,6 +66,8 @@ pub struct PeerInfo {
     ///
     /// Can be either Ready, Connecting or Banned
     pub state: String,
+    /// Special permissions granted to this peer.
+    pub permissions: Vec<String>,
     /// The transport protocol used with peer.
     pub transport_protocol: String,
 }
