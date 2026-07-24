@@ -29,3 +29,9 @@ def test_peer_info(florestad_node, bitcoind_node, node_manager):
 
     peer_info = result[0]
     assert_bitcoind_service_fields(peer_info)
+    assert peer_info["relaytxes"] is False
+    assert peer_info["inbound"] is False
+    assert peer_info["bip152_hb_to"] is False
+    assert peer_info["bip152_hb_from"] is False
+    assert peer_info["timeoffset"] == 0
+    assert peer_info["permissions"] == []

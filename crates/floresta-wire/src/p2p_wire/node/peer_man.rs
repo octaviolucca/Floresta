@@ -868,10 +868,16 @@ where
             address: peer.address.as_bitcoin_socket_addr().clone(),
             services: format!("{:016x}", peer.services.to_u64()),
             services_names: service_flags_strings(&peer.services),
+            relay_txs: false,
             user_agent: peer.user_agent.clone(),
+            inbound: false,
+            bip152_hb_to: false,
+            bip152_hb_from: false,
             initial_height: peer.height,
+            time_offset: 0,
             state: peer.state,
             kind: peer.kind,
+            permissions: Vec::new(),
             transport_protocol: peer.transport_protocol,
         })
     }

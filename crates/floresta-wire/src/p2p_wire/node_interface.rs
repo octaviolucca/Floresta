@@ -45,10 +45,18 @@ pub struct PeerInfo {
     pub services: String,
     #[serde(rename = "servicesnames")]
     pub services_names: Vec<String>,
+    #[serde(rename = "relaytxes")]
+    pub relay_txs: bool,
     pub user_agent: String,
+    pub inbound: bool,
+    pub bip152_hb_to: bool,
+    pub bip152_hb_from: bool,
     pub initial_height: u32,
+    #[serde(rename = "timeoffset")]
+    pub time_offset: i64,
     pub state: PeerStatus,
     pub kind: ConnectionKind,
+    pub permissions: Vec<String>,
     pub transport_protocol: TransportProtocol,
 }
 
