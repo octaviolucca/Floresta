@@ -639,6 +639,7 @@ mod tests {
             state: "state".to_string(),
             transport_protocol: "transport_protocol".to_string(),
             user_agent: "user_agent".to_string(),
+            version: 70016,
             bip152_hb_from: false,
             bip152_hb_to: false,
             inbound: true,

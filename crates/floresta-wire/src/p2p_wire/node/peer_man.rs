@@ -363,6 +363,7 @@ where
                 peer_data.services = version.services;
                 peer_data.user_agent.clone_from(&version.user_agent);
                 peer_data.height = version.blocks;
+                peer_data.protocol_version = version.protocol_version;
                 peer_data.transport_protocol = version.transport_protocol;
             }
 
@@ -397,6 +398,7 @@ where
             peer_data.user_agent.clone_from(&version.user_agent);
             peer_data.height = version.blocks;
             peer_data.time_offset = version.time_offset;
+            peer_data.protocol_version = version.protocol_version;
             peer_data.transport_protocol = version.transport_protocol;
 
             // If this peer doesn't have basic services, we disconnect it
@@ -1038,6 +1040,7 @@ where
             bip152_hb_from: false,
             initial_height: peer.height,
             time_offset: peer.time_offset,
+            protocol_version: peer.protocol_version,
             state: peer.state,
             kind: peer.kind,
             permissions: Vec::new(),

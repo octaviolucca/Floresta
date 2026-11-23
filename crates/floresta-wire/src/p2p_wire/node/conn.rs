@@ -238,6 +238,7 @@ where
                 kind,
                 height: 0,
                 time_offset: 0,
+                protocol_version: 0,
                 banscore: 0,
                 // Will be downgraded to V1 if the V2 handshake fails, and we allow fallback
                 transport_protocol: TransportProtocol::V2,

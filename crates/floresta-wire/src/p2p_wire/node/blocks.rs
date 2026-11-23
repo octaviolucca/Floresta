@@ -799,6 +799,7 @@ mod tests {
                     user_agent: "unit_test".to_string(),
                     height: 0,
                     time_offset: 0,
+                    protocol_version: 0,
                     state: PeerStatus::Ready,
                     channel: tx,
                     kind: ConnectionKind::OutboundFullRelay(ServiceFlags::NETWORK),
