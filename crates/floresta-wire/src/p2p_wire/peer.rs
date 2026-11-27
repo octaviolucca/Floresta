@@ -185,6 +185,7 @@ pub struct Peer<T: AsyncWrite + Unpin + Send + Sync> {
     blocks_only: bool,
     services: ServiceFlags,
     time_offset: i64,
+    protocol_version: u32,
     user_agent: String,
     messages: u64,
     start_time: Instant,
@@ -701,7 +702,7 @@ impl<T: AsyncWrite + Unpin + Send + Sync> Peer<T> {
                     self.send_to_node(
                         PeerMessages::Ready(Version {
                             user_agent: self.user_agent.clone(),
-                            protocol_version: 0,
+                            protocol_version: self.protocol_version,
                             id: self.id,
                             blocks: self.current_best_block.unsigned_abs(),
                             address_id: self.address.id,
@@ -784,6 +785,7 @@ impl<T: AsyncWrite + Unpin + Send + Sync> Peer<T> {
             node_tx,
             services: ServiceFlags::NONE,
             time_offset: 0,
+            protocol_version: 0,
             messages: 0,
             start_time: Instant::now(),
             user_agent: "".into(),
@@ -816,6 +818,7 @@ impl<T: AsyncWrite + Unpin + Send + Sync> Peer<T> {
             .expect("system time should not be before UNIX epoch")
             .as_secs() as i64;
         self.time_offset = version.timestamp.saturating_sub(now);
+        self.protocol_version = version.version;
         self.user_agent = version.user_agent;
         self.blocks_only = !version.relay;
         self.current_best_block = version.start_height;
@@ -1047,6 +1050,7 @@ mod tests {
             node_tx,
             services: ServiceFlags::NONE,
             time_offset: 0,
+            protocol_version: 0,
             messages: 0,
             shutdown: false,
             last_ping: Some(Instant::now()),

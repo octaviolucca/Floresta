@@ -1019,6 +1019,7 @@ mod tests {
                 kind,
                 height: 1,
                 time_offset: 0,
+                protocol_version: 0,
                 banscore: 0,
                 transport_protocol: TransportProtocol::V2,
             },

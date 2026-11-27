@@ -28,6 +28,7 @@ def test_node_info(florestad_bitcoind):
 
     peers_seen_by_floresta = florestad.rpc.get_peerinfo()
     bitcoind_peer = peers_seen_by_floresta[0]
+    assert bitcoind_peer["version"] == bitcoind.rpc.get_networkinfo()["protocolversion"]
     assert bitcoind_peer["address"] == bitcoind.p2p_url
     assert bitcoind_peer["kind"] == "manual"
     assert_bitcoind_service_fields(bitcoind_peer)

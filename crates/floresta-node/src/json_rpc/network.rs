@@ -158,6 +158,7 @@ impl<Blockchain: RpcChain> NetworkRpc for RpcImpl<Blockchain> {
                 permissions: info.permissions,
                 relay_txs: info.relay_txs,
                 time_offset: info.time_offset,
+                version: info.protocol_version,
             })
             .collect();
 

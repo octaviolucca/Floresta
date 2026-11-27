@@ -312,6 +312,9 @@ pub struct LocalPeerView {
     /// The peer time offset in seconds, computed from its version message timestamp
     pub(crate) time_offset: i64,
 
+    /// The protocol version this peer advertised in its version message
+    pub(crate) protocol_version: u32,
+
     /// The banscore of this peer
     ///
     /// This is a score kept for each peer, every time this peer misbehaves, we

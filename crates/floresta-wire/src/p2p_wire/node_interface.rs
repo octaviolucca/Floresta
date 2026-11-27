@@ -54,6 +54,7 @@ pub struct PeerInfo {
     pub initial_height: u32,
     #[serde(rename = "timeoffset")]
     pub time_offset: i64,
+    pub protocol_version: u32,
     pub state: PeerStatus,
     pub kind: ConnectionKind,
     pub permissions: Vec<String>,

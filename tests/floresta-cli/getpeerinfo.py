@@ -18,6 +18,7 @@ EXPECTED_KEYS = {
     "address",
     "services",
     "servicesnames",
+    "version",
     "user_agent",
     "initial_height",
     "kind",
@@ -57,6 +58,7 @@ def assert_peer_info_shape(peer):
     assert isinstance(peer["address"], str)
     assert isinstance(peer["services"], str)
     assert isinstance(peer["servicesnames"], list)
+    assert isinstance(peer["version"], int)
     assert isinstance(peer["user_agent"], str)
     assert isinstance(peer["initial_height"], int)
     assert peer["kind"] in EXPECTED_KINDS
@@ -93,6 +95,7 @@ def test_peer_info(florestad_node, bitcoind_node, node_manager):
     compare_fields(peer, EXPECTED_PEER_INFO)
     assert abs(peer["timeoffset"]) < 60
     assert "Satoshi" in peer["user_agent"]
+    assert peer["version"] > 0
 
 
 def has_ready_peer(node):

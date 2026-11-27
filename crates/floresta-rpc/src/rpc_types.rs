@@ -50,6 +50,8 @@ pub struct PeerInfo {
     /// Whether this peer requested mempool transaction relay from us.
     #[serde(rename = "relaytxes")]
     pub relay_txs: bool,
+    /// The protocol version this peer advertised, e.g. 70016.
+    pub version: u32,
     /// User agent is a string that represents the client being used by our peer. E.g.
     /// /Satoshi-26.0/ for bitcoin core version 26
     pub user_agent: String,
